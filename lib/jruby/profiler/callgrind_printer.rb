@@ -1,6 +1,6 @@
 module JRuby
   module Profiler
-    class CallgrindPrinter < org.jruby.runtime.profile.ProfilePrinter
+    class CallgrindPrinter < org.jruby.runtime.profile.builtin.ProfilePrinter
       # @param [IO] out
       def printHeader(out)
         out.puts("events: process_time")
@@ -41,27 +41,32 @@ module JRuby
       end
 
       # @param [Integer]
-      # @return filename, line number, method_name 
+      # @return filename, line number, method_name
       def get_info(serial)
         name = self.methodName(serial)
         file = '(jruby_runtime)'
         line = 0
 
-        if pm = self.getProfileData().getProfiledMethods().get(serial)
-          if m = pm.getMethod
-            if m.respond_to?(:getFile)
-              file = m.getFile
-            end
+        if m = get_method(serial)
+          if m.respond_to?(:getFile)
+            file = m.getFile
+          end
 
-            if m.respond_to?(:getLine)
-              line = m.getLine
-            end
+          if m.respond_to?(:getLine)
+            line = m.getLine
           end
         end
 
         return [file, line, name]
       end
 
+      def get_method(serial)
+        profileData = self.getProfileData()
+        field = profile_data.getClass().getDeclaredField("profiledMethods")
+        field.setAccessible(true)
+        profiledMethods = field.get(profile_data)
+        profiledMethods.getProfiledMethod(serial)&.getMethod
+      end
     end
   end
 end
